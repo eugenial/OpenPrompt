@@ -19,7 +19,7 @@ from transformers import BertConfig, BertTokenizer, BertModel, BertForMaskedLM, 
 from collections import namedtuple
 from yacs.config import CfgNode
 
-from KOTI_PBL.openprompt.utils.logging import logger
+from openprompt.utils.logging import logger
 
 
 ModelClass = namedtuple("ModelClass", ('config', 'tokenizer', 'model','wrapper'))
