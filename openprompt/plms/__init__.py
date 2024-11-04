@@ -7,23 +7,30 @@ from .mlm import MLMTokenizerWrapper
 from .seq2seq import T5LMTokenizerWrapper, T5TokenizerWrapper
 from .lm import LMTokenizerWrapper
 from transformers import BertConfig, BertTokenizer, BertModel, BertForMaskedLM, \
-                         RobertaConfig, RobertaTokenizer, RobertaModel, RobertaForMaskedLM, \
-                         AlbertTokenizer, AlbertConfig, AlbertModel, AlbertForMaskedLM, \
-                         T5Config, T5Tokenizer, T5ForConditionalGeneration, \
-                         OpenAIGPTTokenizer, OpenAIGPTLMHeadModel, OpenAIGPTConfig, \
-                         GPT2Config, GPT2Tokenizer, GPT2LMHeadModel, \
-                         OPTConfig, OPTForCausalLM, \
-                         ElectraConfig, ElectraForMaskedLM, ElectraTokenizer, \
-                         GPTJConfig, GPTJForCausalLM
+    RobertaConfig, RobertaTokenizer, RobertaModel, RobertaForMaskedLM, \
+    AlbertTokenizer, AlbertConfig, AlbertModel, AlbertForMaskedLM, \
+    T5Config, T5Tokenizer, T5ForConditionalGeneration, \
+    OpenAIGPTTokenizer, OpenAIGPTLMHeadModel, OpenAIGPTConfig, \
+    GPT2Config, GPT2Tokenizer, GPT2LMHeadModel, \
+    OPTConfig, OPTForCausalLM, \
+    ElectraConfig, ElectraForMaskedLM, ElectraTokenizer, \
+    MegatronBertConfig, MegatronBertForMaskedLM, \
+    AutoTokenizer
 from collections import namedtuple
 from yacs.config import CfgNode
 
-from openprompt.utils.logging import logger
+from KOTI_PBL.openprompt.utils.logging import logger
 
 
 ModelClass = namedtuple("ModelClass", ('config', 'tokenizer', 'model','wrapper'))
 
 _MODEL_CLASSES = {
+    'GatorTron': ModelClass(**{
+        'config': MegatronBertConfig,
+        'tokenizer': BertTokenizer,
+        'model':MegatronBertForMaskedLM,
+        'wrapper': MLMTokenizerWrapper,
+    }),
     'bert': ModelClass(**{
         'config': BertConfig,
         'tokenizer': BertTokenizer,
@@ -77,12 +84,6 @@ _MODEL_CLASSES = {
         'tokenizer': ElectraTokenizer,
         'model': ElectraForMaskedLM,
         'wrapper': MLMTokenizerWrapper,
-    }),
-    "gptj": ModelClass(**{
-        "config": GPTJConfig, 
-        "tokenizer": GPT2Tokenizer, 
-        "model": GPTJForCausalLM,
-        "wrapper": LMTokenizerWrapper
     }),
 }
 
