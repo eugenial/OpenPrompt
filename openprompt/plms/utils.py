@@ -27,6 +27,8 @@ class TokenizerWrapper:
             self.truncate_fct = self.truncate_from_head
         elif truncate_method == 'balanced':
             self.truncate_fct = self.balanced_truncate
+        elif truncate_method == 'koti':
+            self.truncate_fct = self.koti
         else:
             raise NotImplementedError
 
@@ -74,25 +76,25 @@ class TokenizerWrapper:
         return  _special_tokens_map
 
     def tokenize_with_mask(self,
-                            wrapped_example: List[Dict],
-                            ) -> InputFeatures:
+                           wrapped_example: List[Dict],
+                           ) -> InputFeatures:
         raise NotImplementedError
 
     def tokenize_without_mask(self,
-                            wrapped_example: List[Dict],
-                            ) -> InputFeatures:
+                              wrapped_example: List[Dict],
+                              ) -> InputFeatures:
         raise NotImplementedError
 
     @staticmethod
     def balanced_truncate(input_dict: Dict,
-                 num_tokens_to_truncate: int=0) -> Dict:
+                          num_tokens_to_truncate: int=0) -> Dict:
         '''truncate the inputs with balance, number of cut tokens is proportional to the part's length.
         '''
         shortenable_lens = [len(parts) if parts[0]==1 else 0
-                                  for parts in input_dict['shortenable_ids']]
+                            for parts in input_dict['shortenable_ids']]
         total_shortenable_len = sum(shortenable_lens)
         num_tokens_to_truncate_each_part = [part_len/total_shortenable_len*num_tokens_to_truncate
-                                                for part_len in shortenable_lens]
+                                            for part_len in shortenable_lens]
         round_list(num_tokens_to_truncate_each_part, num_tokens_to_truncate)
 
         truncated_example = defaultdict(list)
@@ -103,8 +105,61 @@ class TokenizerWrapper:
         return truncated_example
 
     @staticmethod
+    def koti(input_dict: Dict,
+             num_tokens_to_truncate: int=0) -> Dict:
+        '''truncate the inputs with balance, number of cut tokens is proportional to the part's length.
+        '''
+        shortenable_lens = [len(parts) if parts[0]==1 else 0
+                            for parts in input_dict['shortenable_ids']]
+        total_shortenable_len = sum(shortenable_lens)
+        if len([s for s in shortenable_lens if s>0])>2:
+            raise RuntimeWarning('this is implemented for text_a, text_b')
+
+        num_tokens_to_truncate_each_part=[0]*len(shortenable_lens)
+
+        #just text_a
+        if len([s for s in shortenable_lens if s>1])==1:
+            num_tokens_to_truncate+=1
+            for idx, s in enumerate(shortenable_lens):
+                if s > 1:
+                    num_tokens_to_truncate_each_part[idx]=num_tokens_to_truncate
+                else:
+                    num_tokens_to_truncate_each_part[idx]=0
+            round_list(num_tokens_to_truncate_each_part, num_tokens_to_truncate)
+            truncated_example = defaultdict(list)
+            for key in input_dict:
+                parts = input_dict[key]
+                for num_tokens_to_truncate_part, part in zip(num_tokens_to_truncate_each_part, parts):
+                    truncated_example[key].append(part[:len(part)-num_tokens_to_truncate_part])
+            return truncated_example
+        else:
+            tail=None
+            head=None
+            for idx, s in enumerate(shortenable_lens):
+                if s > 0 and not head:
+                    num_tokens_to_truncate_each_part[idx]=s/total_shortenable_len*num_tokens_to_truncate
+                    head=True
+                elif s > 0 and not tail:
+                    num_tokens_to_truncate_each_part[idx]=s/total_shortenable_len*num_tokens_to_truncate
+                    tail=True
+                else:
+                    num_tokens_to_truncate_each_part[idx]=0
+            round_list(num_tokens_to_truncate_each_part, num_tokens_to_truncate)
+            truncated_example = defaultdict(list)
+            for key in input_dict:
+                parts = input_dict[key]
+                head=None
+                for num_tokens_to_truncate_part, part in zip(num_tokens_to_truncate_each_part, parts):
+                    if not head and num_tokens_to_truncate_part>0:
+                        truncated_example[key].append(part[num_tokens_to_truncate_part:])
+                        head=True
+                    else:
+                        truncated_example[key].append(part[:len(part)-num_tokens_to_truncate_part])
+            return truncated_example
+
+    @staticmethod
     def truncate_from_tail(input_dict: Dict,
-                 num_tokens_to_truncate: int=0) -> Dict:
+                           num_tokens_to_truncate: int=0) -> Dict:
         r"""truncate the inputs from the rear
         """
         truncated_example = defaultdict(list)
@@ -126,7 +181,7 @@ class TokenizerWrapper:
 
     @staticmethod
     def truncate_from_head(input_dict: Dict,
-                 num_tokens_to_truncate: int=0) -> Dict:
+                           num_tokens_to_truncate: int=0) -> Dict:
         r"""truncate the inputs from the head
         """
         truncated_example = defaultdict(list)
@@ -166,13 +221,13 @@ class TokenizerWrapper:
 
 
     def add_special_tokens(self, encoder_inputs):
-            # add special tokens
+        # add special tokens
         for key in encoder_inputs:
             if key == "input_ids":
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     encoder_inputs[key] = self.tokenizer.build_inputs_with_special_tokens(
-                                                        encoder_inputs[key])
+                        encoder_inputs[key])
             else:
                 special_tokens_mask = np.array(self.tokenizer.get_special_tokens_mask(encoder_inputs[key]))
                 with_special_tokens = np.array(self.tokenizer.build_inputs_with_special_tokens(encoder_inputs[key]))
@@ -190,5 +245,5 @@ class TokenizerWrapper:
         if num_tokens_to_truncate>0:
             self.num_truncated_sentences += 1
             encoder_inputs = self.truncate_fct(input_dict=encoder_inputs,
-                          num_tokens_to_truncate=num_tokens_to_truncate)
+                                               num_tokens_to_truncate=num_tokens_to_truncate)
         return encoder_inputs
