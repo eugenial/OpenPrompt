@@ -15,7 +15,9 @@ from transformers import BertConfig, BertTokenizer, BertModel, BertForMaskedLM, 
     OPTConfig, OPTForCausalLM, \
     ElectraConfig, ElectraForMaskedLM, ElectraTokenizer, \
     MegatronBertConfig, MegatronBertForMaskedLM, \
-    AutoTokenizer
+    AutoTokenizer, T5TokenizerFast, \
+    BioGptTokenizer, BioGptForCausalLM, \
+    BioGptConfig, T5ForConditionalGeneration, T5Config
 from collections import namedtuple
 from yacs.config import CfgNode
 
@@ -25,6 +27,18 @@ from openprompt.utils.logging import logger
 ModelClass = namedtuple("ModelClass", ('config', 'tokenizer', 'model','wrapper'))
 
 _MODEL_CLASSES = {
+    'biogpt': ModelClass(**{
+        'config': BioGptConfig,
+        'tokenizer': BioGptTokenizer,
+        'model':BioGptForCausalLM,
+        'wrapper': LMTokenizerWrapper,
+    }),
+    'ClinicalT5': ModelClass(**{
+        'config': T5Config,
+        'tokenizer': T5TokenizerFast,
+        'model':T5ForConditionalGeneration,
+        'wrapper': T5LMTokenizerWrapper,
+    }),
     'GatorTron': ModelClass(**{
         'config': MegatronBertConfig,
         'tokenizer': BertTokenizer,
